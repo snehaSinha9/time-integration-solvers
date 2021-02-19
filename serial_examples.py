@@ -43,11 +43,16 @@ class Schemes:
     def ab4(self,x):
         for k,t in enumerate(self.times[:-1]):
             if (k < 3):
-                x[k+1] = x[k]+self.h*self.vector_field(t,x[k])
-                pass
-            f1 = self.vector_field(t,x[k])
-            f2 = self.vector_field(self.times[k-1], x[k-1])
-            f3 = self.vector_field(self.times[k-2], x[k-2])
-            f4 = self.vector_field(self.times[k-3], x[k-3])
-            x[k+1] = x[k] + self.h/24 * (55*f1 - 59*f2 + 37*f3 - 9*f4)
+                f1 = self.vector_field(t,x[k])
+                f2 = self.vector_field(t+0.5*self.h, x[k]+0.5*self.h*f1)
+                f3 = self.vector_field(t+0.5*self.h, x[k]+0.5*self.h*f2)
+                f4 = self.vector_field(t+self.h, x[k]+self.h*f3)
+                x[k+1] = x[k]+self.h/6*(f1+2*f2+2*f3+f4)
+                #x[k+1] = x[k]+self.h*self.vector_field(t,x[k])
+            else:    
+                f1 = self.vector_field(t,x[k])
+                f2 = self.vector_field(self.times[k-1], x[k-1])
+                f3 = self.vector_field(self.times[k-2], x[k-2])
+                f4 = self.vector_field(self.times[k-3], x[k-3])
+                x[k+1] = x[k] + self.h/24 * (55*f1 - 59*f2 + 37*f3 - 9*f4)
         return x

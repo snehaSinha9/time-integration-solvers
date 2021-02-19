@@ -32,3 +32,6 @@ def func2(t,y):
 
 def y_exact2(ts):
     return np.array([[np.cos(t) for t in ts], [np.sin(t) for t in ts]])
+
+def stab_eq(l,y):
+    return l*y
