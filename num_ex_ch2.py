@@ -177,7 +177,7 @@ def test3(method):
     y = ex.y_exact1
 
     errorsM0, errorsM1 = [], []
-    M = [1, 2, 3, 4, 5, 6]
+    M = [1,2,3,4,5,6]
     rangeN = [50*(i**2) for i in [2,4,6,8,10] ]
 
     for m in M:
@@ -240,7 +240,7 @@ def test4():
         errorsM0 = errorsM0 + [errors0]
         errorsM1 = errorsM1 + [errors1]
 
-    fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(18, 6))
+    _, (ax0, ax1) = plt.subplots(ncols=2, figsize=(18, 6))
 
     for i, eM in enumerate(errorsM0):
         ax0.plot(rangeN, eM, markersize=2)
@@ -269,7 +269,6 @@ def test4():
 def test5():
     T1 = 10
     M = 4
-    Mm = M - 1
     y0 = [1,0]
     dy_dt = ex.func2
     y_true = ex.y_exact2
@@ -313,7 +312,7 @@ if __name__ == '__main__':
     #test2(dc().ridc_rk4)
 
     # figure test M
-    test3(dc().ridc_rk4)
+    test3(dc().ridc_fe)
 
     #test4() 
     #test5()
