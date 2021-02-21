@@ -619,3 +619,139 @@ class DCs:
 
         return sol_list
 
+    def ridc_hosseinAB(func, T, y0, N, M):
+        #! AUTHOR: Hossein and Tianming (??)
+        '''
+        Inputs:
+        ff: the RHS of the system of ODEs y'=f(t,y)
+        T:  integration interval[0,T]
+        y0: initial condition
+        N:  number of nodes
+        M: the number of points in calculating quadraure integral
+        (and also the number of steps used in Adam-Bashforth predictor)
+        or number of correction loops PLUS the prection loop
+        Output:
+        t: time vector
+        yy: solution as a function of time
+        '''
+        # number of equations in ODE (aka degree of freedom, dimension of space)
+        # for now set to 1 (will be modified LATER to handle more than one dime)
+        # d = 1  # len(y0)
+        # time step
+        h = float(T)/N
+        # M: the number of points in calculating quadraure integral
+        # (and also the number of steps used in Adam-Bashforth predictor)
+        # Note Mm is the number of correctors
+        Mm = M - 1
+        # Forming the quadraure matrix S[m,i]
+        S = np.zeros([Mm, Mm+1])
+        for m in range(Mm):  # Calculate qudrature weights
+            for i in range(Mm+1):
+                x = np.arange(Mm+1)  # Construct a polynomial
+                y = np.zeros(Mm+1)   # which equals to 1 at i, 0 at other points
+                y[i] = 1
+                p = lagrange(x, y)
+                para = np.array(p)    # Compute its integral
+                P = np.zeros(Mm+2)
+                for k in range(Mm+1):
+                    P[k] = para[k]/(Mm+1-k)
+                P = np.poly1d(P)
+                S[m, i] = P(m+1) - P(m)
+        Svec = S[Mm-1, :]
+        # the final answer will be stored in yy
+        yy = np.zeros(N+1)
+        # putting the initial condition in y
+        yy[0] = y0
+        # Value of RHS at initial time
+        F0 = func(0, y0)
+        # the time vector
+        t = np.arange(0, T+h, h)
+        # extended time vector (temporary: cuz I didn't write code for end part)
+        t_ext = np.arange(0, T+h+M*h, h)
+        # F vector and matrice:
+        # the RHS of ODE is evaluated and stored in this vector and matrix:
+        # F1 [M x M]: first index is the order (0=prection, 1=first correction)
+        # second index is the time (iTime)
+        # Note F1 could have been [M-1 x M] as the first two rows are equal to each
+        # other BUT we designed it as a place holder for future parallelisation
+        F1 = np.zeros([Mm, M])
+        F1[:, 0] = F0
+        F2 = F0
+        # Y2 [M] new point derived in each level (prediction and corrections)
+        Y2 = np.ones(M)*y0
+        # ================== INITIAL PART (1) ==================
+        # for this part the predictor and correctors step up to M points in time
+        # ** predictor ** uses Runge-Kutta 4
+        for iTime in range(0, M-1):
+            KK1 = F1[0, iTime]
+            KK2 = func(t[iTime]+h/2, Y2[0]+KK1*h/2)
+            KK3 = func(t[iTime]+h/2, Y2[0]+KK2*h/2)
+            KK4 = func(t[iTime]+h,   Y2[0]+KK3*h)
+            Y2[0] = Y2[0] + h*(KK1 + 2*KK2 + 2*KK3 + KK4)/6
+            F1[0, iTime+1] = func(t[iTime+1], Y2[0])
+        # ** correctors ** use Integral Deffered Correction
+        for iCor in range(1, M-1):
+            ll = iCor - 1
+            for iTime in range(0, M-1):
+                Y2[iCor] = Y2[iCor] + h*(F1[iCor, iTime]-F1[ll, iTime]) + \
+                    h * np.dot(S[iTime, :], F1[ll, :])
+                F1[iCor, iTime+1] = func(t[iTime+1], Y2[iCor])
+        # treat the last correction loop a little different
+        for iTime in range(0, M-1):
+            Y2[M-1] = Y2[M-1] + h*(F2-F1[M-2, iTime]) + \
+                h * np.dot(S[iTime, :], F1[M-2, :])
+            F2 = func(t[iTime+1], Y2[M-1])
+            yy[iTime+1] = Y2[M-1]
+
+        # ================== INITIAL PART (2) ==================
+        beta_vec = beta(M)
+        beta_vec2 = beta(M-1)
+        for iTime in range(M-1, 2*M-2):
+            iStep = iTime - (M-1)
+            # prediction loop
+            Y2[0] = Y2[0] + h*np.dot(beta_vec, F1[0, :])
+            # correction loops
+            for ll in range(iStep):
+                iCor = ll + 1
+                Y2[iCor] = Y2[iCor] + h*(F1[iCor, -1]-F1[ll, -2]) + \
+                    h * np.dot(Svec, F1[ll, :])
+            F1[0, 0: M-1] = F1[0, 1: M]
+            F1[0, M-1] = func(t_ext[iTime+1], Y2[0])
+            for ll in range(iStep):
+                iCor = ll + 1
+                F1[iCor, 0: M-1] = F1[iCor, 1: M]
+                F1[iCor, M-1] = func(t_ext[iTime+1-iCor], Y2[iCor])
+
+        # ================== MAIN LOOP FOR TIME ==================
+        for iTime in range(2*M-2, N+M-1):
+            # prediction loop
+            Y2[0] = Y2[0] + h*np.dot(beta_vec, F1[0, :])
+            # correction loops up to the second last one
+            for ll in range(M-2):
+                iCor = ll + 1
+                Fvec = np.array([F1[iCor, -3]-F1[ll, -4], F1[iCor, -2] -
+                                F1[ll, -3], F1[iCor, -1]-F1[ll, -2]])
+                Y2[iCor] = Y2[iCor] + h*np.dot(beta_vec2, Fvec) + \
+                    h * np.dot(Svec, F1[ll, :])
+            # last correction loop
+            F2m = func(t_ext[iTime+1-(M-1)-2], yy[iTime+1-(M-1)-2])
+            F2mm = func(t_ext[iTime+1-(M-1)-3], yy[iTime+1-(M-1)-3])
+            Fvec = np.array([F2mm-F1[M-2, -4], F2m-F1[M-2, -3], F2-F1[M-2, -2]])
+            Y2[M-1] = Y2[M-1] + h*np.dot(beta_vec2, Fvec) + \
+                h * np.dot(Svec, F1[M-2, :])
+
+            # ~~~~~~~~~~~ Updating Stencil ~~~~~~~~~~~
+            # ---> updating correctors stencil
+            for ll in range(1, M-1):
+                F1[ll, 0: M-1] = F1[ll, 1: M]
+                F1[ll, M-1] = func(t_ext[iTime+1-ll], Y2[ll])
+            # storing the final answer
+            yy[iTime+1-(M-1)] = Y2[M-1]
+            F2 = func(t_ext[iTime+1-(M-1)], Y2[M-1])
+            # ---> updating predictor stencil
+            # ** approach #0:
+            F1[0, 0: M-1] = F1[0, 1: M]
+            F1[0, M-1] = func(t_ext[iTime+1], Y2[0])
+
+        return t, yy
+
