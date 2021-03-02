@@ -155,7 +155,7 @@ def test2(method):
     ax0.set_xscale('log')
     ax0.set_yscale('log')
     ax0.legend(list(map(lambda x: "K = " + str(x), ks)))
-    ax0.set_xlabel('Number of intervals')
+    ax0.set_xlabel('Number of time steps')
     ax0.set_ylabel(r'Maximum absolute error')
 
     for i, eK in enumerate(errorsK1):
@@ -165,7 +165,7 @@ def test2(method):
     ax1.set_xscale('log')
     ax1.set_yscale('log')
     ax1.legend(list(map(lambda x: "K = " + str(x), ks)))
-    ax1.set_xlabel('Number of intervals')
+    ax1.set_xlabel('Number of time steps')
     ax1.set_ylabel(r'Maximum absolute error')
     plt.show()
 
@@ -203,7 +203,7 @@ def test3(method):
     ax0.set_xscale('log')
     ax0.set_yscale('log')
     ax0.legend(list(map(lambda x: "M = " + str(x), M)))
-    ax0.set_xlabel('Number of intervals')
+    ax0.set_xlabel('Number of time steps')
     ax0.set_ylabel(r'Maximum absolute error')
 
     for i, eM in enumerate(errorsM1):
@@ -213,7 +213,7 @@ def test3(method):
     ax1.set_xscale('log')
     ax1.set_yscale('log')
     ax1.legend(list(map(lambda x: "M = " + str(x), M)))
-    ax1.set_xlabel('Number of intervals')
+    ax1.set_xlabel('Number of time steps')
     ax1.set_ylabel(r'Maximum absolute error')
     plt.show()
 
@@ -249,7 +249,7 @@ def test4():
     ax0.set_xscale('log')
     ax0.set_yscale('log')
     ax0.legend(list(map(lambda x: "approach = " + str(x), approach)))
-    ax0.set_xlabel('Number of intervals')
+    ax0.set_xlabel('Number of time steps')
     ax0.set_ylabel(r'Maximum absolute error')
     #ax0.title('First dimension')
 
@@ -260,7 +260,7 @@ def test4():
     ax1.set_xscale('log')
     ax1.set_yscale('log')
     ax1.legend(list(map(lambda x: "approach = " + str(x), approach)))
-    ax1.set_xlabel('Number of intervals')
+    ax1.set_xlabel('Number of timesteps')
     ax1.set_ylabel(r'Maximum absolute error')
     #ax1.set_title('Second dimension')
     plt.show()
@@ -298,9 +298,105 @@ def test5():
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_xlabel('N')  # Add an x-label to the axes.
-    ax.set_ylabel('squared amplitude error')
+    ax.set_ylabel('Squared amplitude error')
     ax.set_title("Errors using different methods")
     ax.legend(loc='lower left')
+    plt.show()
+
+
+def test6():
+    dy_dt = ex.func0
+    y = ex.y_exact0
+
+    T1 = 100
+    M = 4
+    y0 = np.array([1])
+    yExact = y(T1)
+    rangeN = [int(10**n) for n in np.arange(1.8, 3.8, 0.2)]
+    rangeNpower = [(3*10**13)*int(10**n)**(-8) for n in np.arange(1.8, 3.8, 0.2)]
+    rangeNpower2 = [(3*10**13)*int(10**n)**(-9) for n in np.arange(1.8, 3.8, 0.2)]
+
+    err0 = np.empty(np.shape(rangeN))
+    err1 = np.empty(np.shape(rangeN))
+    #err2 = np.empty(np.shape(rangeN))
+    err3 = np.empty(np.shape(rangeN))
+
+    for i, NN in enumerate(rangeN):
+        yy_0, _ = dc().ridc_abM(T=T1, y0=[1], N=NN-1, M = M, approach = 0, f=dy_dt)
+        yy_1, _ = dc().ridc_abM(T=T1, y0=[1], N=NN-1, M = M, approach = 1, f=dy_dt)
+        #yy_2 = dc().ridc_hosseinAB(func=dy_dt, T=T1, y0=y0, N=NN-1, M=M)
+        yy_3, _ = dc().ridc_abM(T=T1, y0=[1], N=NN-1, M = M, approach = 2, f=dy_dt)
+        
+        err0[i] = abs((yExact-yy_0[-1])/yExact)
+        err1[i] = abs((yExact-yy_1[-1])/yExact)
+        #err2[i] = abs((yExact-yy_2[-1][-1])/yExact)
+        err3[i] = abs((yExact-yy_3[-1])/yExact)
+
+    fig, ax = plt.subplots()
+    ax.plot(rangeN, err0, label='apprach 0')
+    ax.plot(rangeN, err1, label='approach 1')
+    ax.plot(rangeN, err3, label='approach 2')
+    #ax.plot(rangeN, err2, label='Pred AB4, Corr AB3')
+    ax.plot(rangeN, rangeNpower, '--' ,label='e = N^{-8}')
+    ax.plot(rangeN, rangeNpower2,'--', label='e = N^{-9}')
+
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_xlabel('N')  # Add an x-label to the axes.
+    ax.set_ylabel('$|y - y_{exact}|$')
+    ax.set_title("Errors using different methods")
+    ax.legend(loc='lower left')
+    plt.show()
+
+
+def test7():
+    dy_dt = ex.func0
+    y = ex.y_exact0
+
+    T1 = 100
+    y0 = np.array([1])
+    yExact = y(T1)
+    ranges = np.arange(1.9, 3.4, 0.1)
+    rangeN = [int(10**n) for n in ranges]
+    rangeNpower = [(6*10**7)*int(10**n)**(-4) for n in ranges]
+    rangeNpower2 = [(36*10**8)*int(10**n)**(-9) for n in ranges]
+    rangeNpower3 = [(6*10**19)*int(10**n)**(-12) for n in ranges]
+
+    err0 = np.empty(np.shape(rangeN))
+    err1 = np.empty(np.shape(rangeN))
+    err2 = np.empty(np.shape(rangeN))
+    err3 = np.empty(np.shape(rangeN))
+
+    for i, NN in enumerate(rangeN):
+        # rk8
+        yy_0 = dc().ridc_abM2(T=T1, y0=[1], N=NN-1, M = 3, approach = 0, f=dy_dt)
+        # rk4
+        yy_1 = dc().ridc_abM(T=T1, y0=[1], N=NN-1, M = 5, approach = 0, f=dy_dt)
+        yy_2 = dc().ridc_hosseinAB(func=dy_dt, T=T1, y0=y0, N=NN-1, M=4)
+        yy_3 = dc().ridc_hossein_test1(func=dy_dt, T=T1, y0=y0, N=NN-1, M=4)
+        
+        err0[i] = abs((yExact-yy_0[-1])/yExact)
+        err1[i] = abs((yExact-yy_1[-1])/yExact)
+        err2[i] = abs((yExact-yy_2[-1][-1])/yExact)
+        err3[i] = abs((yExact-yy_3[-1][-1])/yExact)
+
+    fig, ax = plt.subplots()
+    
+    ax.plot(rangeN, err1, label='M=5, Start-up RK4, Prediction AB5, Correctors AB4')
+    ax.plot(rangeN, err3, label='M=4, Start-up RK8, Prediction AB4, Correctors AB3')
+    ax.plot(rangeN, err2, label='M=4, Start-up RK4, Prediction AB4, Correctors AB3')
+    ax.plot(rangeN, err0, label='M=3, Start-up RK8, Prediction AB3, Correctors AB2')
+
+    ax.plot(rangeN, rangeNpower, '--' ,label='e = N^{-8}')
+    ax.plot(rangeN, rangeNpower2,'--', label='e = N^{-9}')
+    ax.plot(rangeN, rangeNpower3,'--', label='e = N^{-12}')
+
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_xlabel('N')  # Add an x-label to the axes.
+    ax.set_ylabel('$|y - y_{exact}|$')
+    ax.set_title("Errors using different methods")
+    ax.legend(bbox_to_anchor=(1,1), loc="upper left")
     plt.show()
 
 
@@ -312,7 +408,12 @@ if __name__ == '__main__':
     #test2(dc().ridc_rk4)
 
     # figure test M
-    test3(dc().ridc_fe)
+    #test3(dc().ridc_fe)
 
     #test4() 
     #test5()
+
+    # testing 5 but better
+    #test6()
+    
+    test7()
