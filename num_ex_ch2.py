@@ -356,11 +356,11 @@ def test7():
     T1 = 100
     y0 = np.array([1])
     yExact = y(T1)
-    ranges = np.arange(1.9, 3.4, 0.1)
+    ranges = np.arange(2.0, 3.6, 0.2)
     rangeN = [int(10**n) for n in ranges]
     rangeNpower = [(6*10**7)*int(10**n)**(-4) for n in ranges]
     rangeNpower2 = [(36*10**8)*int(10**n)**(-9) for n in ranges]
-    rangeNpower3 = [(6*10**19)*int(10**n)**(-12) for n in ranges]
+    rangeNpower3 = [(6*10**18)*int(10**n)**(-12) for n in ranges]
 
     err0 = np.empty(np.shape(rangeN))
     err1 = np.empty(np.shape(rangeN))

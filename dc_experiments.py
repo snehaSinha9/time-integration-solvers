@@ -999,7 +999,7 @@ class DCs:
                     P[k] = para[k]/(Mm+1-k)
                 P = np.poly1d(P)
                 S[m, i] = P(m+1) - P(m)
-        Svec = S[Mm-1, :]
+        Svec = S[Mm-1]
         # the final answer will be stored in yy
         yy = np.zeros(N+1)
         # putting the initial condition in y
@@ -1025,17 +1025,6 @@ class DCs:
         # for this part the predictor and correctors step up to M points in time
         # ** predictor ** uses Runge-Kutta 4
         for iTime in range(0, M-1):
-            # k1 = F1[0, iTime]
-            # k2 = func(t[iTime]+h/7, Y2[0] + h*k1/7)
-            # k3 = func(t[iTime]+2*h/7, Y2[0]+h/1323 *(7538*k1 -7160*k2))
-            # k4 = func(t[iTime]+3*h/7, Y2[0]+h/5978 *(549*k1 +4882*k2-2869*k3))
-            # k5 = func(t[iTime]+4*h/7, Y2[0]+h/427 *(-693*k1 +682*k2-211*k3 + 466*k4))
-            # k6 = func(t[iTime]+5*h/7, Y2[0]+h/378 *(-79*k1 +322*k2+244*k3 + 126*k4 -323*k5))
-            # k7 = func(t[iTime]+6*h/7, Y2[0]+h/3577 *(-2537*k1 +2568*k2+1021*k3 + 511*k4 + 511*k5 + 992*k6))
-            # k8 = func(t[iTime]+h, Y2[0]+h/1502 *(-61*k1 +102*k2+428*k3 -112*k4 + 126*k5 + 242*k6 +777*k7))
-            # Y2[0] = Y2[0] + h/120960 * \
-            #     (5257*k1 +25039*k2+9261*k3+20923*k4 + 20923*k5 + 9261*k6 +25039*k7 + 5257*k8)  # RK8
-            # F1[0, iTime+1] = func(t[iTime+1], Y2[0])
             k_1 = F1[0, iTime]
             k_2 = func(t[iTime]+h*(4/27),Y2[0]+(h*4/27)*k_1 )
             k_3 = func(t[iTime]+h*(2/9) ,Y2[0]+  (h/18)*(k_1+3*k_2))
@@ -1047,11 +1036,7 @@ class DCs:
             k_9 = func(t[iTime]+h*(5/6) ,Y2[0]+ (h/288)*(-127*k_1+18*k_3-678*k_4+456*k_5-9*k_6+576*k_7+4*k_8)  )
             k_10= func(t[iTime]+h       ,Y2[0]+(h/820)*(1481*k_1-81*k_3+7104*k_4-3376*k_5+72*k_6-5040*k_7-60*k_8+720*k_9))
             Y2[0] = Y2[0] + h/840*(41*k_1+27*k_4+272*k_5+27*k_6+216*k_7+216*k_9+41*k_10)
-            
-            
-
             F1[0, iTime+1] = func(t[iTime+1], Y2[0])
-
 
 
         # ** correctors ** use Integral Deffered Correction
@@ -1059,12 +1044,12 @@ class DCs:
             ll = iCor - 1
             for iTime in range(0, M-1):
                 Y2[iCor] = Y2[iCor] + h*(F1[iCor, iTime]-F1[ll, iTime]) + \
-                    h * np.dot(S[iTime, :], F1[ll, :])
+                    h * np.dot(S[iTime], F1[ll])
                 F1[iCor, iTime+1] = func(t[iTime+1], Y2[iCor])
         # treat the last correction loop a little different
         for iTime in range(0, M-1):
             Y2[M-1] = Y2[M-1] + h*(F2-F1[M-2, iTime]) + \
-                h * np.dot(S[iTime, :], F1[M-2, :])
+                h * np.dot(S[iTime], F1[M-2])
             F2 = func(t[iTime+1], Y2[M-1])
             yy[iTime+1] = Y2[M-1]
 
@@ -1095,25 +1080,13 @@ class DCs:
         for iTime in range(M-1, 2*M-2):
             iStep = iTime - (M-1)
             # prediction loop
-            
-            Y2[0] = Y2[0] + h*np.dot(beta_vec, F1[0, :])
-            # print(F1[0], beta_vec, h*np.dot(beta_vec, F1[0, :]))
-            # k1 = F1[0, iStep]
-            # k2 = func(t[iTime]+h/7, Y2[0] + h*k1/7)
-            # k3 = func(t[iTime]+2*h/7, Y2[0]+h/1323 *(7538*k1 -7160*k2))
-            # k4 = func(t[iTime]+3*h/7, Y2[0]+h/5978 *(549*k1 +4882*k2-2869*k3))
-            # k5 = func(t[iTime]+4*h/7, Y2[0]+h/427 *(-693*k1 +682*k2-211*k3 + 466*k4))
-            # k6 = func(t[iTime]+5*h/7, Y2[0]+h/378 *(-79*k1 +322*k2+244*k3 + 126*k4 -323*k5))
-            # k7 = func(t[iTime]+6*h/7, Y2[0]+h/3577 *(-2537*k1 +2568*k2+1021*k3 + 511*k4 + 511*k5 + 992*k6))
-            # k8 = func(t[iTime]+h, Y2[0]+h/1502 *(-61*k1 +102*k2+428*k3 -112*k4 + 126*k5 + 242*k6 +777*k7))
-            # Y2[0] = Y2[0] + h/120960 * \
-            #     (5257*k1 +25039*k2+9261*k3+20923*k4 + 20923*k5 + 9261*k6 +25039*k7 + 5257*k8)  # RK8
-            
+            Y2[0] = Y2[0] + h*np.dot(beta_vec, F1[0])
+ 
             # correction loops
             for ll in range(iStep):
                 iCor = ll + 1
                 Y2[iCor] = Y2[iCor] + h*(F1[iCor, -1]-F1[ll, -2]) + \
-                    h * np.dot(Svec, F1[ll, :])
+                    h * np.dot(Svec, F1[ll])
             F1[0, 0: M-1] = F1[0, 1: M]
             F1[0, M-1] = func(t_ext[iTime+1], Y2[0])
             for ll in range(iStep):
@@ -1125,20 +1098,20 @@ class DCs:
         for iTime in range(2*M-2, N+M-1):
             # prediction loop
             # print(Y2[0])
-            Y2[0] = Y2[0] + h*np.dot(beta_vec, F1[0, :])
+            Y2[0] = Y2[0] + h*np.dot(beta_vec, F1[0])
             # correction loops up to the second last one
             for ll in range(M-2):
                 iCor = ll + 1
                 Fvec = np.array([F1[iCor, -3]-F1[ll, -4], F1[iCor, -2] -
                                 F1[ll, -3], F1[iCor, -1]-F1[ll, -2]])
                 Y2[iCor] = Y2[iCor] + h*np.dot(beta_vec2, Fvec) + \
-                    h * np.dot(Svec, F1[ll, :])
+                    h * np.dot(Svec, F1[ll])
             # last correction loop
             F2m = func(t_ext[iTime+1-(M-1)-2], yy[iTime+1-(M-1)-2])
             F2mm = func(t_ext[iTime+1-(M-1)-3], yy[iTime+1-(M-1)-3])
             Fvec = np.array([F2mm-F1[M-2, -4], F2m-F1[M-2, -3], F2-F1[M-2, -2]])
             Y2[M-1] = Y2[M-1] + h*np.dot(beta_vec2, Fvec) + \
-                h * np.dot(Svec, F1[M-2, :])
+                h * np.dot(Svec, F1[M-2])
 
             # ~~~~~~~~~~~ Updating Stencil ~~~~~~~~~~~
             # ---> updating correctors stencil
