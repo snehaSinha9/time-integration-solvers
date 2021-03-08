@@ -11,7 +11,7 @@ class Schemes:
         self.b = stop
         self.times = np.arange(self.a,self.b,h)  
         self.h = h
-          
+    
     def prep_preds(scheme):
         def wrapper(self):
             start = time()
