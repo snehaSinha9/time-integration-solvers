@@ -1,5 +1,4 @@
 import numpy as np
-import pde_tests as ex
 import matplotlib.pyplot as plt
 from dc_experiments import DCs as dc
 from scipy.interpolate import lagrange
@@ -258,13 +257,14 @@ def test2():
 
 def test3():
     def ics(_): return 10
-    # 0.3, ICfunc1D2,0, 300,20, 4)
+    # 4 corrections, kappa =1, 0 at x=0 and x=1, 100 time nodes and 20 spacial ones
     t, u = Heat_fd().heat1d_ridc(
         kappa=1,
         ics=ics,
         bcs=(0, 0),
+        X=(0,1),
         T=0.3,
-        N=300,
+        N=100,
         M=20,
         L=4)
 
