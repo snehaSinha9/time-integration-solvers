@@ -195,51 +195,58 @@ class DCs:
             eta_sol[j*K+1:j*K+K+1] = eta1[j, 1:]
         return eta_sol
 
-    def ridc_fe_stab(self,p,K,l, testeq):#Euler
-        #(a,b)-endpoints, N-number of steps, p-order of method, K- No. intervals,  y0-I.C, F-function    
-        M = p-1  
+    def ridc_fe_stab(self, p, K, l, testeq):  # Euler
+        # (a,b)-endpoints, N-number of steps, p-order of method, K- No. intervals,  y0-I.C, F-function
+        M = p-1
         J = int(10/K)
-        sol_list = np.zeros(11,dtype = complex) #stores the solution N+1
+        sol_list = np.zeros(11, dtype=complex)  # stores the solution N+1
         sol_list[0] = 1.
-        Y = np.zeros((J,K+1),dtype = complex)  #approx solution
-        Y1 = np.zeros((J,K+1),dtype = complex)   #corrected solution
-        Y[0,0]= 1.           #inital value
-        S = np.zeros((M,M+1))  #integration matrix
-        
+        Y = np.zeros((J, K+1), dtype=complex)  # approx solution
+        Y1 = np.zeros((J, K+1), dtype=complex)  # corrected solution
+        Y[0, 0] = 1.  # inital value
+        S = np.zeros((M, M+1))  # integration matrix
+
         for m in range(M):   # calculating integration matrix
             for i in range(M+1):
                 x = np.arange(M+1)  # Construct a polynomial
                 y = np.zeros(M+1)   # which equals 1 at i, 0 at other points
                 y[i] = 1
                 p = lagrange(x, y)  # constructs polynomial
-                para = np.poly1d.integ(p)  
-                S[m,i] = para(m+1) - para(m)  #finds definite integral of polynomial and adds to integral matrix
-                
+                para = np.poly1d.integ(p)
+                # finds definite integral of polynomial and adds to integral matrix
+                S[m, i] = para(m+1) - para(m)
+
         for j in range(J):
-            Y[:, 0] = sol_list[j*K]  # predictor starts w last point in j-1 interval
-            for m in range(K):   #prediction
-                Y[j,m+1] = Y[j,m] + testeq(l,Y[j,m]) #Eulers forward method  
-                
-            for _ in range(1,M+1):   #correction
-                Y1[j,0] = Y[j,0]
-                
-                for m in range(M):  
-                    
-                    g = sum([S[m,k]*testeq(l,Y[j,k]) for k in range(M+1)])
+            # predictor starts w last point in j-1 interval
+            Y[:, 0] = sol_list[j*K]
+            for m in range(K):  # prediction
+                # Eulers forward method
+                Y[j, m+1] = Y[j, m] + testeq(l, Y[j, m])
 
-                    Y1[j,m+1] = Y1[j,m] + testeq(l,Y1[j,m])-testeq(l,Y[j,m]) + g #solve error equation with forward Euler
-                
-                for m in range(M,K):
-                    
-                    g = sum([S[M-1,k]*testeq(l,Y[j,m-M+k+1]) for k in range(M+1)])
-                    
-                    Y1[j,m+1] = Y1[j,m] + (testeq(l,Y1[j,m])-testeq(l,Y[j,m])) + g  #solve error equation with forward Euler
-                        
-                Y[j,:] = Y1[j,:]
-        
-            sol_list[j*K+1:j*K+K+1] = Y1[j,1:K+1]
+            for _ in range(1, M+1):  # correction
+                Y1[j, 0] = Y[j, 0]
 
-                
+                for m in range(M):
+
+                    g = sum([S[m, k]*testeq(l, Y[j, k]) for k in range(M+1)])
+
+                    # solve error equation with forward Euler
+                    Y1[j, m+1] = Y1[j, m] + \
+                        testeq(l, Y1[j, m])-testeq(l, Y[j, m]) + g
+
+                for m in range(M, K):
+
+                    g = sum([S[M-1, k]*testeq(l, Y[j, m-M+k+1])
+                             for k in range(M+1)])
+
+                    # solve error equation with forward Euler
+                    Y1[j, m+1] = Y1[j, m] + \
+                        (testeq(l, Y1[j, m])-testeq(l, Y[j, m])) + g
+
+                Y[j, :] = Y1[j, :]
+
+            sol_list[j*K+1:j*K+K+1] = Y1[j, 1:K+1]
+
         return sol_list
 
     @timing
@@ -364,14 +371,21 @@ class DCs:
             for m in range(K):  # prediction
                 k1 = f(t[j, m], eta0[j, m])
                 k2 = f(t[j, m]+dt/7, eta0[j, m] + dt*k1/7)
-                k3 = f(t[j, m]+2*dt/7, eta0[j, m]+dt/1323 *(7538*k1 -7160*k2))
-                k4 = f(t[j, m]+3*dt/7, eta0[j, m]+dt/5978 *(549*k1 +4882*k2-2869*k3))
-                k5 = f(t[j, m]+4*dt/7, eta0[j, m]+dt/427 *(-693*k1 +682*k2-211*k3 + 466*k4))
-                k6 = f(t[j, m]+5*dt/7, eta0[j, m]+dt/378 *(-79*k1 +322*k2+244*k3 + 126*k4 -323*k5))
-                k7 = f(t[j, m]+6*dt/7, eta0[j, m]+dt/3577 *(-2537*k1 +2568*k2+1021*k3 + 511*k4 + 511*k5 + 992*k6))
-                k8 = f(t[j, m]+dt, eta0[j, m]+dt/1502 *(-61*k1 +102*k2+428*k3 -112*k4 + 126*k5 + 242*k6 +777*k7))
+                k3 = f(t[j, m]+2*dt/7, eta0[j, m] +
+                       dt/1323 * (7538*k1 - 7160*k2))
+                k4 = f(t[j, m]+3*dt/7, eta0[j, m]+dt /
+                       5978 * (549*k1 + 4882*k2-2869*k3))
+                k5 = f(t[j, m]+4*dt/7, eta0[j, m]+dt/427 *
+                       (-693*k1 + 682*k2-211*k3 + 466*k4))
+                k6 = f(t[j, m]+5*dt/7, eta0[j, m]+dt/378 *
+                       (-79*k1 + 322*k2+244*k3 + 126*k4 - 323*k5))
+                k7 = f(t[j, m]+6*dt/7, eta0[j, m]+dt/3577 * (-2537 *
+                                                             k1 + 2568*k2+1021*k3 + 511*k4 + 511*k5 + 992*k6))
+                k8 = f(t[j, m]+dt, eta0[j, m]+dt/1502 * (-61*k1 +
+                                                         102*k2+428*k3 - 112*k4 + 126*k5 + 242*k6 + 777*k7))
                 eta0[j, m+1] = eta0[j, m] + dt/120960 * \
-                    (5257*k1 +25039*k2+9261*k3+20923*k4 + 20923*k5 + 9261*k6 +25039*k7 + 5257*k8)  # RK4
+                    (5257*k1 + 25039*k2+9261*k3+20923*k4 + 20923 *
+                     k5 + 9261*k6 + 25039*k7 + 5257*k8)  # RK4
 
             for _ in range(1, M+1):  # correction
                 eta1[j, 0] = eta0[j, 0]
@@ -499,7 +513,8 @@ class DCs:
         for m in range(Mm):  # Calculate qudrature weights
             for i in range(Mm+1):
                 x = np.arange(Mm+1)  # Construct a polynomial
-                y = np.zeros(Mm+1)   # which equals to 1 at i, 0 at other points
+                # which equals to 1 at i, 0 at other points
+                y = np.zeros(Mm+1)
                 y[i] = 1
                 p = lagrange(x, y)
                 para = np.array(p)    # Compute its integral
@@ -663,7 +678,8 @@ class DCs:
         for m in range(Mm):  # Calculate qudrature weights
             for i in range(Mm+1):
                 x = np.arange(Mm+1)  # Construct a polynomial
-                y = np.zeros(Mm+1)   # which equals to 1 at i, 0 at other points
+                # which equals to 1 at i, 0 at other points
+                y = np.zeros(Mm+1)
                 y[i] = 1
                 p = lagrange(x, y)
                 para = np.array(p)    # Compute its integral
@@ -699,18 +715,23 @@ class DCs:
         # ** predictor ** uses Runge-Kutta 4
         for iTime in range(0, M-1):
             k_1 = F1[0, iTime]
-            k_2 = f(t[iTime]+h*(4/27),Y2[0]+(h*4/27)*k_1 )
-            k_3 = f(t[iTime]+h*(2/9) ,Y2[0]+  (h/18)*(k_1+3*k_2))
-            k_4 = f(t[iTime]+h*(1/3) ,Y2[0]+  (h/12)*(k_1+3*k_3))
-            k_5 = f(t[iTime]+h*(1/2) ,Y2[0]+   (h/8)*(k_1+3*k_4))
-            k_6 = f(t[iTime]+h*(2/3) ,Y2[0]+  (h/54)*(13*k_1-27*k_3+42*k_4+8*k_5))
-            k_7 = f(t[iTime]+h*(1/6) ,Y2[0]+(h/4320)*(389*k_1-54*k_3+966*k_4-824*k_5+243*k_6))
-            k_8 = f(t[iTime]+h       ,Y2[0]+  (h/20)*(-234*k_1+81*k_3-1164*k_4+656*k_5-122*k_6+800*k_7) )
-            k_9 = f(t[iTime]+h*(5/6) ,Y2[0]+ (h/288)*(-127*k_1+18*k_3-678*k_4+456*k_5-9*k_6+576*k_7+4*k_8)  )
-            k_10= f(t[iTime]+h       ,Y2[0]+(h/820)*(1481*k_1-81*k_3+7104*k_4-3376*k_5+72*k_6-5040*k_7-60*k_8+720*k_9))
-            Y2[0] = Y2[0] + h/840*(41*k_1+27*k_4+272*k_5+27*k_6+216*k_7+216*k_9+41*k_10)
-            
-            
+            k_2 = f(t[iTime]+h*(4/27), Y2[0]+(h*4/27)*k_1)
+            k_3 = f(t[iTime]+h*(2/9), Y2[0] + (h/18)*(k_1+3*k_2))
+            k_4 = f(t[iTime]+h*(1/3), Y2[0] + (h/12)*(k_1+3*k_3))
+            k_5 = f(t[iTime]+h*(1/2), Y2[0] + (h/8)*(k_1+3*k_4))
+            k_6 = f(t[iTime]+h*(2/3), Y2[0] + (h/54)
+                    * (13*k_1-27*k_3+42*k_4+8*k_5))
+            k_7 = f(t[iTime]+h*(1/6), Y2[0]+(h/4320) *
+                    (389*k_1-54*k_3+966*k_4-824*k_5+243*k_6))
+            k_8 = f(t[iTime]+h, Y2[0] + (h/20) *
+                    (-234*k_1+81*k_3-1164*k_4+656*k_5-122*k_6+800*k_7))
+            k_9 = f(t[iTime]+h*(5/6), Y2[0] + (h/288) *
+                    (-127*k_1+18*k_3-678*k_4+456*k_5-9*k_6+576*k_7+4*k_8))
+            k_10 = f(t[iTime]+h, Y2[0]+(h/820)*(1481*k_1-81*k_3 +
+                                                7104*k_4-3376*k_5+72*k_6-5040*k_7-60*k_8+720*k_9))
+            Y2[0] = Y2[0] + h/840 * \
+                (41*k_1+27*k_4+272*k_5+27*k_6+216*k_7+216*k_9+41*k_10)
+
             F1[0, iTime+1] = f(t[iTime+1], Y2[0])
         # ** correctors ** use Integral Deffered Correction
         for iCor in range(1, M-1):
@@ -833,7 +854,8 @@ class DCs:
         for m in range(Mm):  # Calculate qudrature weights
             for i in range(Mm+1):
                 x = np.arange(Mm+1)  # Construct a polynomial
-                y = np.zeros(Mm+1)   # which equals to 1 at i, 0 at other points
+                # which equals to 1 at i, 0 at other points
+                y = np.zeros(Mm+1)
                 y[i] = 1
                 p = lagrange(x, y)
                 para = np.array(p)    # Compute its integral
@@ -936,13 +958,14 @@ class DCs:
             for ll in range(M-2):
                 iCor = ll + 1
                 Fvec = np.array([F1[iCor, -3]-F1[ll, -4], F1[iCor, -2] -
-                                F1[ll, -3], F1[iCor, -1]-F1[ll, -2]])
+                                 F1[ll, -3], F1[iCor, -1]-F1[ll, -2]])
                 Y2[iCor] = Y2[iCor] + h*np.dot(beta_vec2, Fvec) + \
                     h * np.dot(Svec, F1[ll, :])
             # last correction loop
             F2m = func(t_ext[iTime+1-(M-1)-2], yy[iTime+1-(M-1)-2])
             F2mm = func(t_ext[iTime+1-(M-1)-3], yy[iTime+1-(M-1)-3])
-            Fvec = np.array([F2mm-F1[M-2, -4], F2m-F1[M-2, -3], F2-F1[M-2, -2]])
+            Fvec = np.array(
+                [F2mm-F1[M-2, -4], F2m-F1[M-2, -3], F2-F1[M-2, -2]])
             Y2[M-1] = Y2[M-1] + h*np.dot(beta_vec2, Fvec) + \
                 h * np.dot(Svec, F1[M-2, :])
 
@@ -960,7 +983,6 @@ class DCs:
             F1[0, M-1] = func(t_ext[iTime+1], Y2[0])
 
         return t, yy
-
 
     def ridc_hossein_test1(self, func, T, y0, N, M):
         '''
@@ -990,7 +1012,8 @@ class DCs:
         for m in range(Mm):  # Calculate qudrature weights
             for i in range(Mm+1):
                 x = np.arange(Mm+1)  # Construct a polynomial
-                y = np.zeros(Mm+1)   # which equals to 1 at i, 0 at other points
+                # which equals to 1 at i, 0 at other points
+                y = np.zeros(Mm+1)
                 y[i] = 1
                 p = lagrange(x, y)
                 para = np.array(p)    # Compute its integral
@@ -1026,18 +1049,23 @@ class DCs:
         # ** predictor ** uses Runge-Kutta 4
         for iTime in range(0, M-1):
             k_1 = F1[0, iTime]
-            k_2 = func(t[iTime]+h*(4/27),Y2[0]+(h*4/27)*k_1 )
-            k_3 = func(t[iTime]+h*(2/9) ,Y2[0]+  (h/18)*(k_1+3*k_2))
-            k_4 = func(t[iTime]+h*(1/3) ,Y2[0]+  (h/12)*(k_1+3*k_3))
-            k_5 = func(t[iTime]+h*(1/2) ,Y2[0]+   (h/8)*(k_1+3*k_4))
-            k_6 = func(t[iTime]+h*(2/3) ,Y2[0]+  (h/54)*(13*k_1-27*k_3+42*k_4+8*k_5))
-            k_7 = func(t[iTime]+h*(1/6) ,Y2[0]+(h/4320)*(389*k_1-54*k_3+966*k_4-824*k_5+243*k_6))
-            k_8 = func(t[iTime]+h       ,Y2[0]+  (h/20)*(-234*k_1+81*k_3-1164*k_4+656*k_5-122*k_6+800*k_7) )
-            k_9 = func(t[iTime]+h*(5/6) ,Y2[0]+ (h/288)*(-127*k_1+18*k_3-678*k_4+456*k_5-9*k_6+576*k_7+4*k_8)  )
-            k_10= func(t[iTime]+h       ,Y2[0]+(h/820)*(1481*k_1-81*k_3+7104*k_4-3376*k_5+72*k_6-5040*k_7-60*k_8+720*k_9))
-            Y2[0] = Y2[0] + h/840*(41*k_1+27*k_4+272*k_5+27*k_6+216*k_7+216*k_9+41*k_10)
+            k_2 = func(t[iTime]+h*(4/27), Y2[0]+(h*4/27)*k_1)
+            k_3 = func(t[iTime]+h*(2/9), Y2[0] + (h/18)*(k_1+3*k_2))
+            k_4 = func(t[iTime]+h*(1/3), Y2[0] + (h/12)*(k_1+3*k_3))
+            k_5 = func(t[iTime]+h*(1/2), Y2[0] + (h/8)*(k_1+3*k_4))
+            k_6 = func(t[iTime]+h*(2/3), Y2[0] + (h/54)
+                       * (13*k_1-27*k_3+42*k_4+8*k_5))
+            k_7 = func(t[iTime]+h*(1/6), Y2[0]+(h/4320) *
+                       (389*k_1-54*k_3+966*k_4-824*k_5+243*k_6))
+            k_8 = func(t[iTime]+h, Y2[0] + (h/20) *
+                       (-234*k_1+81*k_3-1164*k_4+656*k_5-122*k_6+800*k_7))
+            k_9 = func(t[iTime]+h*(5/6), Y2[0] + (h/288) *
+                       (-127*k_1+18*k_3-678*k_4+456*k_5-9*k_6+576*k_7+4*k_8))
+            k_10 = func(t[iTime]+h, Y2[0] + (h/820)*(1481*k_1-81 *
+                                                     k_3+7104*k_4-3376*k_5+72*k_6-5040*k_7-60*k_8+720*k_9))
+            Y2[0] = Y2[0] + h/840 * \
+                (41*k_1+27*k_4+272*k_5+27*k_6+216*k_7+216*k_9+41*k_10)
             F1[0, iTime+1] = func(t[iTime+1], Y2[0])
-
 
         # ** correctors ** use Integral Deffered Correction
         for iCor in range(1, M-1):
@@ -1081,7 +1109,7 @@ class DCs:
             iStep = iTime - (M-1)
             # prediction loop
             Y2[0] = Y2[0] + h*np.dot(beta_vec, F1[0])
- 
+
             # correction loops
             for ll in range(iStep):
                 iCor = ll + 1
@@ -1103,13 +1131,14 @@ class DCs:
             for ll in range(M-2):
                 iCor = ll + 1
                 Fvec = np.array([F1[iCor, -3]-F1[ll, -4], F1[iCor, -2] -
-                                F1[ll, -3], F1[iCor, -1]-F1[ll, -2]])
+                                 F1[ll, -3], F1[iCor, -1]-F1[ll, -2]])
                 Y2[iCor] = Y2[iCor] + h*np.dot(beta_vec2, Fvec) + \
                     h * np.dot(Svec, F1[ll])
             # last correction loop
             F2m = func(t_ext[iTime+1-(M-1)-2], yy[iTime+1-(M-1)-2])
             F2mm = func(t_ext[iTime+1-(M-1)-3], yy[iTime+1-(M-1)-3])
-            Fvec = np.array([F2mm-F1[M-2, -4], F2m-F1[M-2, -3], F2-F1[M-2, -2]])
+            Fvec = np.array(
+                [F2mm-F1[M-2, -4], F2m-F1[M-2, -3], F2-F1[M-2, -2]])
             Y2[M-1] = Y2[M-1] + h*np.dot(beta_vec2, Fvec) + \
                 h * np.dot(Svec, F1[M-2])
 
