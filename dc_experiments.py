@@ -815,8 +815,8 @@ class DCs:
                 F1[0, 0] = F2
                 F1[0, 1:M-1] = F1[0, 2:M]
             # ** approach #2 : pushing the recently corrected answer of
+            # **               each corrector to the associated node in predictor
             else:
-                # each corrector to the associated node in predictor
                 F1[0, 0] = F2
                 for ii in range(1, M-1):
                     F1[0, ii] = F1[-ii, -1]
