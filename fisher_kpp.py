@@ -53,7 +53,7 @@ class fisher_kpp():
         T: time bounds
         N: no. of time nodes
         M: no. of spatial nodes 
-        https://www.scirp.org/pdf/AJCM_2017040511510090.pdf
+        https://www.ias.ac.in/article/fulltext/pram/078/03/0335-0346
         """
         a, b = X
         dt = float(T)/N
@@ -272,7 +272,7 @@ def test(T, N, M, i,j):
     def u_tX(t): return (1+np.exp(np.sqrt(alpha/6)-(5/6)*alpha*t))**(-2)
 
     u = fisher_kpp().f_kpp_fe(alpha=alpha, beta=beta,
-                              ics=u_0x, bcs=(u_t0, u_tX), T=T, N=N, M=M)
+                                ics=u_0x, bcs=(u_t0, u_tX), T=T, N=N, M=M)
 
     print('numerical', u[i:j])
 
@@ -348,7 +348,7 @@ def test_0(T, N, M, i,j):
     def u_t0(t): return (1+np.exp(-(5/6)*alpha*t))**(-2)
     def u_tX(t): return (1+np.exp(np.sqrt(alpha/6)-(5/6)*alpha*t))**(-2)
 
-    
+
 
     # 4 corrections, kappa =1, 0 at x=0 and x=1, 100 time nodes and 20 spacial ones
     u = fisher_kpp().f_kpp_ridc(
@@ -361,35 +361,20 @@ def test_0(T, N, M, i,j):
         N=N,
         M=M,
         L=4)
-    print(u[i:j])
 
-    # For .py, only first 10 temporal nodes
-    # for i, u_i in enumerate(u):
-    #     x = np.arange(0, 1.05, 0.05)
-    #     fig, ax = plt.subplots()
-    #     ax.set_title('t=' + str(t[i]))
-    #     ax.set_xlabel(r'$x$')
-    #     ax.set_ylabel(r'$u$')
-    #     ax.axis([0, 1, -10, 10])
-    #     ax.plot(x, u_i)
-    #     if (i == 10):
-    #         break
- 
-    # Copy script for running on interactive python
-    # x = np.arange(0,1.05,0.05)
-    # fig, ax = plt.subplots()
-    # ax.set_xlabel(r'$x$')
-    # ax.set_ylabel(r'$u$')
-    # ax.axis([0,1,-10,10])
-    # ax.plot(x, u_i)
-    # l, = ax.plot([],[])
-    # def animate(i): l.set_data(x, u[i])
-    # ani = FuncAnimation(fig, animate, frames=100)
-    # HTML(ani.to_jshtml())
-
+    print(u.shape)
+    x = np.linspace(0,1,M+1)
+    fig, ax = plt.subplots()
+    ax.set_xlabel(r'$x$')
+    ax.set_ylabel(r'$u$')
+    ax.axis([0,1,0,0.3])
+    l, = ax.plot([],[])
+    def animate(i): l.set_data(x, u[i])
+    ani = FuncAnimation(fig, animate, frames=100)
+    HTML(ani.to_jshtml())
 
 if __name__ == '__main__':
-    T, N, M = 0.01, 100, 10
+    T, N, M = 0.01, 10000, 20
     i, j = 4, 5
     print('test pr1: T, N, M =', T, N, M)
     print('test, regular fe')
