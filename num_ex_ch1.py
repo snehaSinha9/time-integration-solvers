@@ -62,7 +62,7 @@ def orders():
     plt.show()
 
 # 1 step
-def stability_1step(R, axisbox=[-2, 2, -2, 2]):
+def stability_1step(col, R, axisbox=[-2, 2, -2, 2], method='.'):
     nptsx = 501
     nptsy = 501
     xa, xb, ya, yb = axisbox
@@ -75,9 +75,10 @@ def stability_1step(R, axisbox=[-2, 2, -2, 2]):
     print(X.shape, Y.shape)
     levels = [-1e9, 1, 1e9]
     Sregion_color = [0.8, 0.8, 1.]   # RGB
-    plt.contourf(X, Y, Rabs, levels, colors=[Sregion_color, 'w'])
-    plt.contour(X, Y, Rabs, [1], colors='k')  # boundary
-
+    # plt.contourf(X, Y, Rabs, levels, colors=[Sregion_color, 'w'])
+    l=plt.contour(X, Y, Rabs, [1], colors=col)  # boundary
+    #plt.clabel(l, inline=1, fontsize=10)
+    print(l.labels)
     # plot axes
     plt.plot([xa, xb], [0, 0], 'k')
     plt.plot([0, 0], [ya, yb], 'k')
@@ -85,14 +86,14 @@ def stability_1step(R, axisbox=[-2, 2, -2, 2]):
     plt.axis('scaled')  # so circles are circular
     plt.xlabel(r'$Re(\lambda \Delta t)$')
     plt.ylabel(r'$Im(\lambda \Delta t)$')
+    return l
 
 # multi-step
-def stability_mstep(rho, sigma, axisbox=[-2, 2, -2, 2]):
+def stability_mstep(rho, sigma, axisbox=[-2, 2, -2, 2], method='.'):
     theta = np.linspace(0, 2*np.pi, 1000)
     eitheta = np.exp(1j * theta)
     z = rho(eitheta) / sigma(eitheta)
-    plt.plot(z.real, z.imag, 'r', linewidth=2)
-
+    l = plt.plot(z.real, z.imag, 'r', linewidth=2)
     # plot axes
     xa, xb, ya, yb = axisbox
     plt.plot([xa, xb], [0, 0], 'k')
@@ -102,43 +103,45 @@ def stability_mstep(rho, sigma, axisbox=[-2, 2, -2, 2]):
     plt.xlabel(r'$Re(\lambda \Delta t)$')
     plt.ylabel(r'$Im(\lambda \Delta t)$')
 
+    return l
+
 
 def tests(i):
     if (i == 1):
         # AB4
         def rho(z): return (z-1.) * z**3
         def sigma(z): return (((55*z - 59)*z + 37.)*z - 9) / 24.
-        stability_mstep(rho, sigma)
+        return stability_mstep(rho, sigma, method='AB4')
     elif (i == 2):
         # BE
         np.seterr(all='ignore')  # ignore divide by zero errors
         def R(z): return 1./(1.-z)
-        stability_1step(R, [-2.5, 2.5, -2, 2])
+        return stability_1step('c', R, [-2.5, 2.5, -2, 2], 'BE')
     elif (i == 3):
         # FE
         np.seterr(all='ignore')  # ignore divide by zero errors
         def R(z): return 1./(1.+z)
-        stability_1step(R, [-2.5, 2.5, -2, 2])
+        return stability_1step('b', R, [-2.5, 2.5, -2, 2], 'FE')
     elif (i == 4):
         # CN
         np.seterr(all='ignore')  # ignore divide by zero errors
         def R(z): return (1. + z/2.)/(1.-z/2.)
-        stability_1step(R, [-2.5, 2.5, -2, 2])
+        return stability_1step('m',R, [-2.5, 2.5, -2, 2], 'CN')
     elif (i == 5):
         # RK4
         np.seterr(all='ignore')  # ignore divide by zero errors
         def R(z): return 1 + z + z**2 / 2 + z**3 / 6 + z**4 / 24
-        stability_1step(R, [-5, 5, -5, 5])
+        return stability_1step('g', R, [-5, 5, -5, 5], 'RK4')
     elif (i == 6):
         # Implicit trapozodial
         def rho(z): return z-1.
         def sigma(z): return z/2. + 0.5
-        stability_mstep(rho, sigma, [-2, 2, -2, 2])
+        return stability_mstep(rho, sigma, [-2, 2, -2, 2], 'Implicit CN')
     elif (i == 7):
         # Implicit trapozodial
         def rho(z): return z-1.
         def sigma(z): return 1
-        stability_mstep(rho, sigma, [-2, 2, -2, 2])
+        return stability_mstep(rho, sigma, [-2, 2, -2, 2])
 
 # !stability_dc, does not work
 
@@ -331,9 +334,26 @@ def ridc_stab(M_):
 
 
 if __name__ == '__main__':
-    # tests(2)
-    #idc_stab([2])
-    ridc_stab([2, 3, 4])
+    # plt.figure()
+    # fe = tests(3)
+    # rk4 = tests(5)
+    # ab4 = tests(1)[0]
+    # # plt.clabel(fe)
+    # # plt.clabel(rk4)
+    # # plt.clabel(ab4)
+
+    # labels = ['FE', 'RK4', 'AB4']
+    # fe.collections[0].set_label(labels[0])
+    # rk4.collections[0].set_label(labels[1])
+    # ab4.set_label(labels[2])
+
+    # plt.legend(loc='upper right')
+
+
+    idc_stab([2,3,5,6])
+
+    
+    # ridc_stab([2, 3, 4])
 
     #orders()
     
