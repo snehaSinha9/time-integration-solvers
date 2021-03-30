@@ -211,8 +211,7 @@ class Heat_fd:
 
         return t, yy
 
-
-    def heat2d_ridc(self, kappa, ics, T, N, M, L, bcs=(0, 0), X=(0., 1.)):
+    def heat2d_ridc(self, kappa, ics, T, N, M, L, bcs, X=(0., 1.)):
         """
         kappa: coefficient for heat equation
         ics: ics, y0
@@ -237,7 +236,7 @@ class Heat_fd:
         xs = np.arange(a, b + dx, dx)
         t = np.arange(0, T+dt, dt)
 
-        def beta(L):
+        def beta(L_):
             '''
             Generates beta coefficients for Adam-Bashforth integrating scheme
             These coefficients are stored in reversed compared to conventional
@@ -247,19 +246,19 @@ class Heat_fd:
             M: the order of Adam-Bashforth scheme
             '''
 
-            if L == 2:
+            if L_ == 2:
                 return np.array([-1./2, 3./2])
-            elif L == 3:
+            elif L_ == 3:
                 return np.array([5./12, -16./12, 23./12])
-            elif L == 4:
+            elif L_ == 4:
                 return np.array([-9./24, 37./24, -59./24, 55./24])
-            elif L == 5:
+            elif L_ == 5:
                 return np.array([251./720, -1274./720, 2616./720, -2774./720, 1901./720])
-            elif L == 6:
+            elif L_ == 6:
                 return np.array([-475./720, 2877./720, -7298./720, 9982./720, -7923./720, 4277./720])
 
-        beta_vec = beta(L)
-        beta_vec2 = beta(L-1)
+        beta_vec = beta(4)
+        beta_vec2 = beta(3)
 
     
         # forward Euler discretisation
@@ -294,13 +293,12 @@ class Heat_fd:
         for i in range(1,M):
             for j in range(1,M):
                 yy[0, i,j] = ics(xs[i], xs[j])
-        yy[0, 0], yy[0, M], yy[0, :, 0], yy[0, :, M]  = bcs
+        yy[0, 0], yy[0, M], yy[0, :, 0], yy[0, :, M]  = bcs(0), bcs(0), bcs(0), bcs(0)
 
         # Value of RHS at initial time
         F0 = func(yy[0])
         F1 = np.zeros([Lm, L, M+1, M+1])
         F1[:, 0] = np.tile(F0,(Lm,1,1))
-
         F2 = F0
         # Y2 [L] new point derived in each level (prediction and corrections)
         Y2 = np.tile(yy[0],(L,1,1))
@@ -309,55 +307,63 @@ class Heat_fd:
         # for this part the predictor and correctors step up to L points in time
         # ** predictor ** uses Runge-Kutta 4
         for iTime in range(0, L-1):
-            KK1 = F1[0, iTime]
-            KK2 = func(Y2[0]+KK1*dt/2)
-            KK3 = func(Y2[0]+KK2*dt/2)
-            KK4 = func(Y2[0]+KK3*dt)
-            Y2[0, 1:M, 1:M] = Y2[0,1:M, 1:M] + dt*(KK1 + 2*KK2 + 2*KK3 + KK4)[1:M, 1:M]/6            
+            k_1 = F1[0, iTime,:,:]
+            k_2 = func(Y2[0]+(dt*4/27)*k_1 )
+            k_3 = func(Y2[0]+  (dt/18)*(k_1+3*k_2))
+            k_4 = func(Y2[0]+  (dt/12)*(k_1+3*k_3))
+            k_5 = func(Y2[0]+   (dt/8)*(k_1+3*k_4))
+            k_6 = func(Y2[0]+  (dt/54)*(13*k_1-27*k_3+42*k_4+8*k_5))
+            k_7 = func(Y2[0]+(dt/4320)*(389*k_1-54*k_3+966*k_4-824*k_5+243*k_6))
+            k_8 = func(Y2[0]+  (dt/20)*(-234*k_1+81*k_3-1164*k_4+656*k_5-122*k_6+800*k_7) )
+            k_9 = func(Y2[0]+ (dt/288)*(-127*k_1+18*k_3-678*k_4+456*k_5-9*k_6+576*k_7+4*k_8)  )
+            k_10= func(Y2[0]+(dt/820)*(1481*k_1-81*k_3+7104*k_4-3376*k_5+72*k_6-5040*k_7-60*k_8+720*k_9))
+            Y2[0,1:M,1:M] = Y2[0,1:M,1:M] + dt/840*(41*k_1+27*k_4+272*k_5+27*k_6+216*k_7+216*k_9+41*k_10)[1:M,1:M] 
             F1[0, iTime+1] = func(Y2[0])
 
         # ** correctors ** use Integral Deffered Correction
         for iCor in range(1, L-1):
             ll = iCor - 1
             for iTime in range(0, L-1):
-                Y2[iCor, 1:M,1:M] = Y2[iCor, 1:M, 1:M] + dt*(F1[iCor, iTime, 1:M, 1:M]-F1[ll, iTime, 1:M]) + \
-                    dt * np.dot(S[iTime], F1[ll, :, 1:M, 1:M])
-                F1[iCor, iTime+1] = func(Y2[iCor])
-
+                Y2[iCor,1:M,1:M] = Y2[iCor,1:M,1:M] + dt*(F1[iCor,iTime,1:M,1:M]-F1[ll,iTime,1:M,1:M]) + \
+                dt * np.tensordot(S[iTime, :],F1[ll,:,1:M,1:M],axes =1)
+                F1[iCor, iTime+1] = func(Y2[iCor])  
         # treat the last correction loop a little different
         for iTime in range(0, L-1):
-            Y2[L-1, 1:M, 1:M] = Y2[L-1, 1:M, 1:M] + dt*(F2[1:M, 1:M]-F1[L-2, iTime, 1:M, 1:M]) + \
-                dt * np.dot(S[iTime], F1[L-2, :, 1:M, 1:M])
+            Y2[L-1,1:M,1:M] = Y2[L-1,1:M,1:M] + dt*(F2[1:M,1:M]-F1[L-2, iTime,1:M,1:M]) + \
+                dt * np.tensordot(S[iTime],F1[ll,:,1:M,1:M],axes =1)
             F2 = func(Y2[L-1])
             yy[iTime+1] = Y2[L-1]
 
         # ================== INITIAL PART (2) ==================
-
+        beta_vec = beta(4)
+        beta_vec2 = beta(3)
         for iTime in range(L-1, 2*L-2):
             iStep = iTime - (L-1)
             # prediction loop
-            Y2[0, 1:M, 1:M] = Y2[0, 1:M, 1:M] + dt* np.tensordot(beta_vec, F1[0,-4:,1:M, 1:M])
+            Y2[0,1:M,1:M] = Y2[0,1:M,1:M] + dt*np.tensordot(beta_vec,F1[0, -4:,1:M,1:M],axes =1)
             # correction loops
             for ll in range(iStep):
-                iCor = ll + 1
-                Y2[iCor, 1:M, 1:M] = Y2[iCor,1:M,1:M] + dt*(F1[iCor, -1,1:M,1:M]-F1[ll, -2,1:M,1:M]) + \
+                iCor = ll + 1     
+                Y2[iCor,1:M,1:M] = Y2[iCor,1:M,1:M] + dt*(F1[iCor, -1,1:M,1:M]-F1[ll, -2,1:M,1:M]) + \
                     dt * np.tensordot(Svec,F1[ll,:,1:M,1:M],axes =1)
-            F1[0, 0:L-1] = F1[0, 1:L]
+            F1[0, :L-1] = F1[0, 1:L]
             F1[0, L-1] = func(Y2[0])
-            for ll in range(iStep):  # updating stencil
+            for ll in range(iStep):   #updating stencil
                 iCor = ll + 1
-                F1[iCor, 0:L-1] = F1[iCor, 1:L]
+                F1[iCor, :L-1] = F1[iCor, 1:L]
                 F1[iCor, L-1] = func(Y2[iCor])
 
-        # ================== MAIN LOOP FOR TIME ==================
+        # ================== MAIN LOOP FOR TIME ==================   
         for iTime in range(2*L-2, N+L-1):
             # prediction loop
-            Y2[0, 1:M, 1:M] = Y2[iCor,1:M,1:M] +  dt * np.tensordot(beta_vec,F1[ll,-4,1:M,1:M],axes =1)
+            Y2[0,1:M,1:M] = Y2[0,1:M,1:M] + dt*np.tensordot(beta_vec,F1[0, -4:,1:M,1:M],axes =1)
+            
             # correction loops up to the second last one
             for ll in range(L-2):
                 iCor = ll + 1
                 Fvec = np.array([F1[iCor, -3,1:M,1:M]-F1[ll, -4,1:M,1:M], F1[iCor, -2,1:M,1:M] -
                                 F1[ll, -3,1:M,1:M], F1[iCor, -1,1:M,1:M]-F1[ll, -2,1:M,1:M]])            
+                #print(Fvec)
                         
                 Y2[iCor,1:M,1:M] = Y2[iCor,1:M,1:M] + dt*np.tensordot(beta_vec2,Fvec,axes =1) + \
                     dt * np.tensordot(Svec,F1[ll,:,1:M,1:M],axes =1)        
@@ -367,12 +373,12 @@ class Heat_fd:
             Fvec = np.array([F2mm[1:M,1:M]-F1[L-2, -4,1:M,1:M], F2m[1:M,1:M]-F1[L-2, -3,1:M,1:M],
                             F2[1:M,1:M]-F1[L-2, -2,1:M,1:M]]) 
             
-            Y2[M-1,1:M,1:M] = Y2[M-1,1:M,1:M] + dt * np.tensordot(beta_vec2,Fvec,axes =1) + \
+            Y2[L-1,1:M,1:M] = Y2[L-1,1:M,1:M] + dt * np.tensordot(beta_vec2,Fvec,axes =1) + \
                 dt * np.tensordot(Svec,F1[ll,:,1:M,1:M],axes =1)
             
             # ~~~~~~~~~~~ Updating Stencil ~~~~~~~~~~~
             # ---> updating correctors stencil
-            for ll in range(1, M-1):
+            for ll in range(1, L-1):
                 F1[ll, 0:L-1] = F1[ll, 1:L]
                 F1[ll, L-1] = func(Y2[ll])
             # storing the final answer
@@ -380,12 +386,10 @@ class Heat_fd:
             F2 = func(Y2[L-1])
             # ---> updating predictor stencil
             # ** approach #0:
-            F1[0, 0:L-1] = F1[0, 1:L]
-
+            F1[0, :L-1] = F1[0, 1:L]
             F1[0, L-1] = func(Y2[0])
 
-        return t, yy
-
+        return yy
 
 def test1():
     # neuman (only when du_dx=0)
@@ -436,30 +440,41 @@ def test3():
         M=20,
         L=4)
 
-    # For .py, only first 10 temporal nodes
-    for i, u_i in enumerate(u):
-        x = np.arange(0, 1.05, 0.05)
-        fig, ax = plt.subplots()
-        ax.set_title('t=' + str(t[i]))
-        ax.set_xlabel(r'$x$')
-        ax.set_ylabel(r'$u$')
-        ax.axis([0, 1, -10, 10])
-        ax.plot(x, u_i)
-        if (i == 10):
-            break
+    x = np.arange(0,1.05,0.05)
+    fig, ax = plt.subplots()
+    ax.set_xlabel(r'$x$')
+    ax.set_ylabel(r'$u$')
+    ax.axis([0,1,-10,10])
+    l, = ax.plot([],[])
+    def animate(i): l.set_data(x, u[i])
+    ani = FuncAnimation(fig, animate, frames=100)
+    HTML(ani.to_jshtml())
 
-    # Copy script for running on interactive python
-    # x = np.arange(0,1.05,0.05)
-    # fig, ax = plt.subplots()
-    # ax.set_xlabel(r'$x$')
-    # ax.set_ylabel(r'$u$')
-    # ax.axis([0,1,-10,10])
-    # ax.plot(x, u_i)
-    # l, = ax.plot([],[])
-    # def animate(i): l.set_data(x, u[i])
-    # ani = FuncAnimation(fig, animate, frames=100)
-    # HTML(ani.to_jshtml())
+def test4():
+    # 4 corrections, kappa =1, 0 at x=0 and x=1, 100 time nodes and 20 spacial ones
+    t, u1 = Heat_fd().heat2d_ridc(
+        kappa=1,
+        ics=ics,
+        bcs=(0, 0),
+        X=(0,1),
+        T=0.3,
+        N=100,
+        M=20,
+        L=4)
+
+    print(u1.shape)
+    x = np.arange(0,1.05, 0.05)
+    x2= np.linspace(0,1, 100+1)
+    print(x.shape,x2.shape)
+    fig, ax = plt.subplots()
+    ax.set_xlabel(r'$x$')
+    ax.set_ylabel(r'$u$')
+    ax.axis([0,1,-10,10])
+    l, = ax.plot([],[])
+    def animate(i): l.set_data(x, u[i])
+    ani = FuncAnimation(fig, animate, frames=100)
+    HTML(ani.to_jshtml())
 
 
 if __name__ == '__main__':
-    test3()
+    test4()
