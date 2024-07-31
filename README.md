@@ -1,5 +1,5 @@
 # time-integration-solvers
-4th Year Project. 
+
 
 ## Prelims
 Implement the following in P(C)ython,
